@@ -8,27 +8,35 @@
 # any damage or problems caused by this program.
 
 import enum
+import json
 import sys
 
 
 class Title:
-    def __init__(self, enough: bool=False, title: str=None, description: str=None, charset: str='UTF-8'):
+    def __init__(self, enough: bool, title: str, description: str, charset: str, eff_charset: str):
         self.enough = enough
         self.title = title
         self.description = description
         self.charset = charset
 
         if title is not None:
-            self.title_decode = title.decode(charset, 'replace')
+            self.title_decode = title.decode(eff_charset, 'replace')
         else:
             self.title_decode = None
         if description is not None:
-            self.description_decode = description.decode(charset, 'replace')
+            self.description_decode = description.decode(eff_charset, 'replace')
         else:
             self.description_decode = None
 
+    def __str__(self):
+        return json.dumps({
+            "enough": self.enough, "title": self.title_decode, "description": self.description_decode, "charset": self.charset
+        }, ensure_ascii=False, indent=4)
+
     def __repr__(self):
-        return 'Title(enough=%r, title=%r, description=%r, charset=%r)' % (self.enough, self.title_decode, self.description_decode, self.charset)
+        return 'Title(\n    enough=%r,\n    title=%r,\n    description=%r,\n    charset=%r\n)' % (
+            self.enough, self.title_decode, self.description_decode, self.charset
+        )
 
 
 class State(enum.Enum):
@@ -90,7 +98,8 @@ class Squeezer:
         self.inside_title = False
         self.title = None
         self.description = None
-        self.charset = 'UTF-8'
+        self.charset = None
+        self.eff_charset = 'UTF-8'
         self.head_done = False
 
     def feed(self, data: bytes=b'') -> Title:
@@ -108,12 +117,12 @@ class Squeezer:
 
             elif self.state == State.tag:
                 if self._isspace(c):
-                    self._dispatch_content(b'<' + c)
+                    self._dispatch_content(b'&lt;' + c)
                     self.state = State.content
                 elif c == b'<':
-                    self._dispatch_content(b'<')
+                    self._dispatch_content(b'&lt;')
                 elif c == b'>':
-                    self._dispatch_content(b'<>')
+                    self._dispatch_content(b'&lt;&gt;')
                     self.state = State.content
                 elif c == b'!':
                     self.state = State.tagbang
@@ -206,7 +215,7 @@ class Squeezer:
                     self._start_tag(self.lasttag)
                     self.state = State.attrname
                 elif c == b'<':
-                    self._dispatch_content(b'</')
+                    self._dispatch_content(b'&lt;/')
                     self.state = State.tag
                 elif c == b'>':
                     self.lasttag = b'/'
@@ -223,7 +232,7 @@ class Squeezer:
                     self._start_tag(self.lasttag)
                     self.state = State.attrname
                 elif c == b'<':
-                    self._dispatch_content(b'<!')
+                    self._dispatch_content(b'&lt;!')
                     self.state = State.tag
                 elif c == b'>':
                     self.lasttag = b'!'
@@ -242,7 +251,7 @@ class Squeezer:
                     self._start_tag(self.lasttag)
                     self.state = State.attrname
                 elif c == b'<':
-                    self._dispatch_content(b'<!-')
+                    self._dispatch_content(b'&lt;!-')
                     self.state = State.tag
                 elif c == b'>':
                     self.lasttag = b'!-'
@@ -362,12 +371,20 @@ class Squeezer:
             self.head_done,
             self.title,
             self.description,
-            self.charset
+            self.charset,
+            self.eff_charset
         )
 
     @staticmethod
     def _isspace(c: bytes) -> bool:
         return c in (b'\x09', b'\x0a', b'\x0c', b'\x0d', b'\x20')
+
+    @staticmethod
+    def _lower(s: [bytes, str, None]) -> [bytes, str, None]:
+        if s is None:
+            return None
+        else:
+            return s.lower()
 
     def _dispatch_content(self, content: bytes):
         if self.inside_title:
@@ -380,7 +397,7 @@ class Squeezer:
         if not tag:
             return
         self.lastattrs = {}
-        sys.stderr.write('<%s' % tag.decode(self.charset, 'replace'))
+        sys.stderr.write('<%s' % tag.decode(self.eff_charset, 'replace'))
         if tag.lower() == b'title':
             self.inside_title = True
         elif tag.lower() == b'/title':
@@ -397,11 +414,11 @@ class Squeezer:
         self.lastattrs[attr.lower()] = value
         if value is not None:
             sys.stderr.write('\n  %s="%s"' % (
-                attr.decode(self.charset, 'replace'),
-                value.decode(self.charset, 'replace')
+                attr.decode(self.eff_charset, 'replace'),
+                value.decode(self.eff_charset, 'replace')
             ))
         else:
-            sys.stderr.write('\n  %s' % attr.decode(self.charset, 'replace'))
+            sys.stderr.write('\n  %s' % attr.decode(self.eff_charset, 'replace'))
 
     def _finish_tag(self, tag: bytes):
         if not tag:
@@ -434,25 +451,24 @@ class Squeezer:
         if not charset:
             return
         charset = charset.strip().decode('UTF-8', 'replace')
+        self.charset = charset
         try:
             b'A'.decode(charset, 'replace')
-            self.charset = charset
+            self.eff_charset = charset
         except LookupError:
             return False
         return True
 
-    @staticmethod
-    def _lower(s: [bytes, str, None]) -> [bytes, str, None]:
-        if s is None:
-            return None
-        else:
-            return s.lower()
+    def _is_enough(self) -> bool:
+        return self.head_done or (self.title is not None and self.description is not None and self.charset is not None)
 
 def main():
     squeezer = Squeezer()
     while True:
         data = sys.stdin.buffer.read(2048)
         if not data:
+            print()
+            print(squeezer.feed())
             break
         result = squeezer.feed(data)
         if result.enough:
