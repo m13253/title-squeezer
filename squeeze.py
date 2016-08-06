@@ -489,7 +489,8 @@ class Squeezer:
         self.lastattrs = {}
         sys.stderr.write('<%s' % tag.decode(self.eff_charset, 'replace'))
         if tag.lower() == b'title':
-            self.inside_title = True
+            if self.title is None:
+                self.inside_title = True
         elif tag.lower() == b'/title':
             self.inside_title = False
         elif tag.lower() == b'/head':
@@ -516,24 +517,30 @@ class Squeezer:
         assert tag == self.lasttag
         assert self.lastattrs is not None
         if tag.lower() == b'meta':
-            if b'charset' in self.lastattrs:
-                self._set_charset(self.lastattrs[b'charset'])
-            if b'http-equiv' in self.lastattrs:
-                if self._lower(self.lastattrs[b'http-equiv']) == b'content-type':
-                    content = self.lastattrs.get(b'content')
-                    if content:
-                        content_splitted = content.split(b';')
-                        for content_item in content_splitted:
-                            content_kv = content_item.split(b'=', 1)
-                            if len(content_kv) == 2:
-                                content_key = content_kv[0].strip()
-                                content_value = content_kv[1].strip()
-                                if content_key.lower() == b'charset':
-                                    self._set_charset(content_value)
-            if b'name' in self.lastattrs:
-                if self._lower(self.lastattrs[b'name']) == b'description':
-                    if b'content' in self.lastattrs:
-                        self.description = self.lastattrs[b'content']
+            if self.charset is None:
+                if b'charset' in self.lastattrs:
+                    self._set_charset(self.lastattrs[b'charset'])
+                elif b'http-equiv' in self.lastattrs:
+                    if self._lower(self.lastattrs[b'http-equiv']) == b'content-type':
+                        content = self.lastattrs.get(b'content')
+                        if content:
+                            content_splitted = content.split(b';')
+                            for content_item in content_splitted:
+                                content_kv = content_item.split(b'=', 1)
+                                if len(content_kv) == 2:
+                                    content_key = content_kv[0].strip()
+                                    content_value = content_kv[1].strip()
+                                    if content_key.lower() == b'charset':
+                                        self._set_charset(content_value)
+            if self.description is None:
+                if b'name' in self.lastattrs:
+                    if self._lower(self.lastattrs[b'name']) == b'description':
+                        if b'content' in self.lastattrs:
+                            self.description = self.lastattrs[b'content']
+                elif b'property' in self.lastattrs:
+                    if self._lower(self.lastattrs[b'name']) == b'og:description':
+                        if b'content' in self.lastattrs:
+                            self.description = self.lastattrs[b'content']
         self.lastattrs = None
         sys.stderr.write('>\n')
 
