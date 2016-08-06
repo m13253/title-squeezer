@@ -7,6 +7,7 @@
 # This program comes with no warranty, the author will not be resopnsible for
 # any damage or problems caused by this program.
 
+
 import enum
 import json
 import sys
@@ -461,6 +462,7 @@ class Squeezer:
 
     def _is_enough(self) -> bool:
         return self.head_done or (self.title is not None and self.description is not None and self.charset is not None)
+
 
 def main():
     squeezer = Squeezer()
