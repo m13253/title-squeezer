@@ -458,7 +458,7 @@ class Squeezer:
                     self.state = State.style
 
         return Title(
-            self.head_done,
+            self._is_enough(),
             self.title,
             self.description,
             self.charset,
