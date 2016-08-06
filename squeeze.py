@@ -104,11 +104,13 @@ class Squeezer:
         self.lastvalue = None
         self.lastattrs = None
 
+        self.charset = None
+        self.eff_charset = default_charset
         self.inside_title = False
         self.title = None
         self.description = None
-        self.charset = None
-        self.eff_charset = default_charset
+        self.og_title = None
+        self.og_description = None
         self.head_done = False
 
     def feed(self, data: bytes=b'') -> Title:
@@ -459,8 +461,8 @@ class Squeezer:
 
         return Title(
             self._is_enough(),
-            self.title,
-            self.description,
+            self.og_title or self.title,
+            self.og_description or self.description,
             self.charset,
             self.eff_charset
         )
@@ -537,10 +539,16 @@ class Squeezer:
                     if self._lower(self.lastattrs[b'name']) == b'description':
                         if b'content' in self.lastattrs:
                             self.description = self.lastattrs[b'content']
-                elif b'property' in self.lastattrs:
-                    if self._lower(self.lastattrs[b'name']) == b'og:description':
+            if self.og_title is None:
+                if b'property' in self.lastattrs:
+                    if self._lower(self.lastattrs[b'property']) == b'og:title':
                         if b'content' in self.lastattrs:
-                            self.description = self.lastattrs[b'content']
+                            self.og_title = self.lastattrs[b'content']
+            if self.og_description is None:
+                if b'property' in self.lastattrs:
+                    if self._lower(self.lastattrs[b'property']) == b'og:description':
+                        if b'content' in self.lastattrs:
+                            self.og_description = self.lastattrs[b'content']
         self.lastattrs = None
         sys.stderr.write('>\n')
 
@@ -557,7 +565,11 @@ class Squeezer:
         return True
 
     def _is_enough(self) -> bool:
-        return self.head_done or (self.title is not None and self.description is not None and self.charset is not None)
+        return self.head_done or (
+            self.charset is not None and
+            (self.og_title is not None or self.title is not None) and
+            (self.og_description is not None or self.description is not None)
+        )
 
 
 def main():
