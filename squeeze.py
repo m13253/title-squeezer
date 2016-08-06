@@ -97,7 +97,7 @@ class State(enum.Enum):
 
 
 class Squeezer:
-    def __init__(self):
+    def __init__(self, default_charset='UTF-8'):
         self.state = State.content
         self.lasttag = b''
         self.lastattr = b''
@@ -108,7 +108,7 @@ class Squeezer:
         self.title = None
         self.description = None
         self.charset = None
-        self.eff_charset = 'UTF-8'
+        self.eff_charset = default_charset
         self.head_done = False
 
     def feed(self, data: bytes=b'') -> Title:
