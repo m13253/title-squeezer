@@ -489,16 +489,17 @@ class Squeezer:
         if not tag:
             return
         self.lastattrs = {}
-        sys.stderr.write('<%s' % tag.decode(self.eff_charset, 'replace'))
         if tag.lower() == b'title':
             if self.title is None:
                 self.inside_title = True
         elif tag.lower() == b'/title':
+            sys.stderr.write('  %s\n' % self.title.decode(self.eff_charset, 'replace'))
             self.inside_title = False
         elif tag.lower() == b'/head':
             self.head_done = True
         elif tag.lower() == b'body':
             self.head_done = True
+        sys.stderr.write('<%s' % tag.decode(self.eff_charset, 'replace'))
 
     def _dispatch_attr(self, tag: bytes, attr: bytes, value: [bytes, None]=None):
         if not attr:
