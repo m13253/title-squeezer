@@ -40,52 +40,60 @@ class Title:
         )
 
 
+@enum.unique
 class State(enum.Enum):
 
     content = 0
 
     #  <a href=# style="color: red">Content</a>
-    #  0123    4 3     45          40       1620
-    tag = 1
-    tagname = 2
-    attrname = 3
-    attrvalue = 4
-    attrquote = 5
-    tagslash = 6
+    #   222    2 2     22          2        222
+    #  0024    6 4     67          60       0120
+    #  <img src=photo.jpg />
+    #   2   2   2         22
+    #  00   2   4         240
+    tag            = 20
+    tagslash       = 21
+    tagname        = 22
+    tagnameslash   = 23
+    attrname       = 24
+    attrnameslash  = 25
+    attrvalue      = 26
+    attrquote      = 27
+    attrvalueslash = 28
 
     #  <!-- Comment -->
-    #                11
-    #  01789         010
-    tagbang = 7
-    tagbangdash = 8
-    comment = 9
-    commentdash = 10
-    commentdashdash = 11
+    #   2444         44
+    #  00012         340
+    tagbang         = 40
+    tagbangdash     = 41
+    comment         = 42
+    commentdash     = 43
+    commentdashdash = 44
 
     #  <script>alert("hi")</script>
-    #          1           11111112
-    #  012     2           345678900
-    script = 12
-    scripttag = 13
-    scripttagslash = 14
-    scripttagslashs = 15
-    scripttagslashsc = 16
-    scripttagslashscr = 17
-    scripttagslashscri = 18
-    scripttagslashscrip = 19
-    scripttagslashscript = 20
+    #   22     6           66666666
+    #  002     0           123456780
+    script               = 60
+    scripttag            = 61
+    scripttagslash       = 62
+    scripttagslashs      = 63
+    scripttagslashsc     = 64
+    scripttagslashscr    = 65
+    scripttagslashscri   = 66
+    scripttagslashscrip  = 67
+    scripttagslashscript = 68
 
     #  <style>p { color: red; }</style>
-    #         2                 2222222
-    #  012    1                 23456780
-    style = 21
-    styletag = 22
-    styletagslash = 23
-    styletagslashs = 24
-    styletagslashst = 25
-    styletagslashsty = 26
-    styletagslashstyl = 27
-    styletagslashstyle = 28
+    #   22    8                 8888888
+    #  002    0                 12345670
+    style              = 80
+    styletag           = 81
+    styletagslash      = 82
+    styletagslashs     = 83
+    styletagslashst    = 84
+    styletagslashsty   = 85
+    styletagslashstyl  = 86
+    styletagslashstyle = 87
 
 
 class Squeezer:
@@ -138,6 +146,7 @@ class Squeezer:
                     self._start_tag(self.lasttag)
                     self.state = State.attrname
                 elif c == b'<':
+                    self._start_tag(self.lasttag)
                     self.lasttag = b''
                     self.state = State.tag
                 elif c == b'>':
@@ -149,8 +158,29 @@ class Squeezer:
                         self.state = State.style
                     else:
                         self.state = State.content
+                elif c == b'/':
+                    self.state = State.tagnameslash
                 else:
                     self.lasttag += c
+
+            elif self.state == State.tagnameslash:
+                if self._isspace(c):
+                    self.lasttag += b'/'
+                    self._start_tag(self.lasttag)
+                    self.state = State.attrname
+                elif c == b'<':
+                    self._start_tag(self.lasttag)
+                    self.lasttag = b''
+                    self.state = State.tag
+                elif c == b'>':
+                    self._start_tag(self.lasttag)
+                    self._finish_tag(self.lasttag)
+                    self.state = State.content
+                elif c == b'/':
+                    self.lasttag += b'/'
+                else:
+                    self.lasttag += c
+                    self.state = State.tagname
 
             elif self.state == State.attrname:
                 if self._isspace(c):
@@ -172,11 +202,38 @@ class Squeezer:
                         self.state = State.style
                     else:
                         self.state = State.content
+                elif c == b'/':
+                    self.state = State.attrnameslash
                 elif c == b'=':
                     self.lastvalue = b''
                     self.state = State.attrvalue
                 else:
                     self.lastattr += c
+
+            elif self.state == State.attrnameslash:
+                if self._isspace(c):
+                    self.lastattr += b'/'
+                    self._dispatch_attr(self.lasttag, self.lastattr)
+                    self.lastattr = b''
+                    self.lastvalue = None
+                elif c == b'<':
+                    self._dispatch_attr(self.lasttag, self.lastattr)
+                    self.lasttag = b''
+                    self.lastattr = b''
+                    self.lastvalue = None
+                    self.state = State.tag
+                elif c == b'>':
+                    self._dispatch_attr(self.lasttag, self.lastattr)
+                    self._finish_tag(self.lasttag)
+                    self.state = State.content
+                elif c == b'/':
+                    self.lastattr += b'/'
+                elif c == b'=':
+                    self.lastvalue = b''
+                    self.state = State.attrvalue
+                else:
+                    self.lastattr += c
+                    self.state = State.attrname
 
             elif self.state == State.attrvalue:
                 if self._isspace(c):
@@ -199,6 +256,8 @@ class Squeezer:
                         self.state = State.style
                     else:
                         self.state = State.content
+                elif c == b'/':
+                    self.state = State.attrvalueslash
                 elif c == b'"':
                     self.state = State.attrquote
                 else:
@@ -209,6 +268,36 @@ class Squeezer:
                     self.state = State.attrvalue
                 else:
                     self.lastvalue += c
+
+            elif self.state == State.attrvalueslash:
+                if self._isspace(c):
+                    self.lastvalue += b'/'
+                    self._dispatch_attr(self.lasttag, self.lastattr, self.lastvalue)
+                    self.lastattr = b''
+                    self.lastvalue = None
+                    self.state = State.attrname
+                elif c == b'<':
+                    self._dispatch_attr(self.lasttag, self.lastattr, self.lastvalue)
+                    self.lasttag = b''
+                    self.lastattr = b''
+                    self.lastvalue = None
+                    self.state = State.tag
+                elif c == b'>':
+                    self._dispatch_attr(self.lasttag, self.lastattr, self.lastvalue)
+                    self._finish_tag(self.lasttag)
+                    if self.lasttag.lower() == b'script':
+                        self.state = State.script
+                    elif self.lasttag.lower() == b'style':
+                        self.state = State.style
+                    else:
+                        self.state = State.content
+                elif c == b'/':
+                    self.lastvalue += b'/'
+                elif c == b'"':
+                    self.state = State.attrquote
+                else:
+                    self.lastvalue += c
+                    self.state = State.attrvalue
 
             elif self.state == State.tagslash:
                 if self._isspace(c):
