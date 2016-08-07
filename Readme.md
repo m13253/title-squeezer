@@ -22,8 +22,9 @@ Programmable Interface
 ----------------------
 
 ```python
+>>> import title_squeezer
 # First construct a Squeezer instance
->>> squeezer = Squeezer()
+>>> squeezer = title_squeezer.Squeezer()
 # Then feed in HTML data
 >>> squeezer.feed(b'<html><head><title>Hello wo')
 Title(
