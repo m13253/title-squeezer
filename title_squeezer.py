@@ -515,7 +515,8 @@ class Squeezer:
             if self.title is None:
                 self.inside_title = True
         elif tag.lower() == b'/title':
-            self._log('  %s\n' % self.title.decode(self.eff_charset, 'replace'))
+            if self.title is not None:
+                self._log('  %s\n' % self.title.decode(self.eff_charset, 'replace'))
             self.inside_title = False
         elif tag.lower() == b'/head':
             self.head_done = True
