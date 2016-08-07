@@ -9,6 +9,7 @@
 
 
 import enum
+import html
 import json
 import sys
 
@@ -21,11 +22,11 @@ class Title:
         self.charset = charset
 
         if title is not None:
-            self.title_decode = title.decode(eff_charset, 'replace')
+            self.title_decode = html.unescape(title.decode(eff_charset, 'replace'))
         else:
             self.title_decode = None
         if description is not None:
-            self.description_decode = description.decode(eff_charset, 'replace')
+            self.description_decode = html.unescape(description.decode(eff_charset, 'replace'))
         else:
             self.description_decode = None
 
@@ -44,6 +45,7 @@ class Title:
 class State(enum.Enum):
 
     content = 0
+    contentspace = 1
 
     #  <a href=# style="color: red">Content</a>
     #   222    2 2     22          2        222
@@ -123,13 +125,28 @@ class Squeezer:
             c = bytes((c,))
 
             if self.state == State.content:
-                if c == b'<':
-                    self.state = State.tag
+                if self._isspace(c):
+                    self._dispatch_content(b'\x20')
+                    self.state = State.contentspace
+                elif c == b'<':
                     self.lasttag = b''
                     self.lastattr = b''
                     self.lastvalue = None
+                    self.state = State.tag
                 else:
                     self._dispatch_content(c)
+
+            elif self.state == State.contentspace:
+                if self._isspace(c):
+                    pass
+                elif c == b'<':
+                    self.lasttag = b''
+                    self.lastattr = b''
+                    self.lastvalue = None
+                    self.state = State.tag
+                else:
+                    self._dispatch_content(c)
+                    self.state = State.content
 
             elif self.state == State.tag:
                 if self._isspace(c):
@@ -584,7 +601,8 @@ class Squeezer:
 
 def main():
     squeezer = Squeezer()
-    squeezer.set_debug()
+    if '-v' in sys.argv:
+        squeezer.set_debug()
     while True:
         data = sys.stdin.buffer.read(2048)
         if not data:

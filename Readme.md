@@ -12,7 +12,7 @@ Usage
 -----
 
 ```bash
-curl -L -s --compressed https://en.wikipedia.org | ./squeezer.py -v
+curl -L -s --compressed https://en.wikipedia.org | ./title_squeezer.py -v
 ```
 
 Using `-v` will print out every HTML tag it successfully parses.
