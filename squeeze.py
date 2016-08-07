@@ -589,14 +589,12 @@ def main():
         data = sys.stdin.buffer.read(2048)
         if not data:
             sys.stderr.write('\n')
-            sys.stdout.write(squeezer.feed())
-            sys.stdout.write('\n')
+            sys.stdout.write(str(squeezer.feed())+'\n')
             break
         result = squeezer.feed(data)
         if result.enough:
             sys.stderr.write('\n')
-            sys.stdout.write(result)
-            sys.stdout.write('\n')
+            sys.stdout.write(str(result)+'\n')
             break
 
 
