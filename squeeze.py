@@ -98,6 +98,8 @@ class State(enum.Enum):
 
 class Squeezer:
     def __init__(self, default_charset='UTF-8'):
+        self.debug = False
+
         self.state = State.content
         self.lasttag = b''
         self.lastattr = b''
@@ -112,6 +114,9 @@ class Squeezer:
         self.og_title = None
         self.og_description = None
         self.head_done = False
+
+    def set_debug(self, enabled: bool=True):
+        self.debug = enabled
 
     def feed(self, data: bytes=b'') -> Title:
         for c in data:
@@ -493,13 +498,13 @@ class Squeezer:
             if self.title is None:
                 self.inside_title = True
         elif tag.lower() == b'/title':
-            sys.stderr.write('  %s\n' % self.title.decode(self.eff_charset, 'replace'))
+            self._log('  %s\n' % self.title.decode(self.eff_charset, 'replace'))
             self.inside_title = False
         elif tag.lower() == b'/head':
             self.head_done = True
         elif tag.lower() == b'body':
             self.head_done = True
-        sys.stderr.write('<%s' % tag.decode(self.eff_charset, 'replace'))
+        self._log('<%s' % tag.decode(self.eff_charset, 'replace'))
 
     def _dispatch_attr(self, tag: bytes, attr: bytes, value: [bytes, None]=None):
         if not attr:
@@ -507,12 +512,12 @@ class Squeezer:
         assert tag == self.lasttag
         self.lastattrs[attr.lower()] = value
         if value is not None:
-            sys.stderr.write('\n  %s="%s"' % (
+            self._log('\n  %s="%s"' % (
                 attr.decode(self.eff_charset, 'replace'),
                 value.decode(self.eff_charset, 'replace')
             ))
         else:
-            sys.stderr.write('\n  %s' % attr.decode(self.eff_charset, 'replace'))
+            self._log('\n  %s' % attr.decode(self.eff_charset, 'replace'))
 
     def _finish_tag(self, tag: bytes):
         if not tag:
@@ -551,7 +556,7 @@ class Squeezer:
                         if b'content' in self.lastattrs:
                             self.og_description = self.lastattrs[b'content']
         self.lastattrs = None
-        sys.stderr.write('>\n')
+        self._log('>\n')
 
     def _set_charset(self, charset: bytes) -> bool:
         if not charset:
@@ -572,19 +577,26 @@ class Squeezer:
             (self.og_description is not None or self.description is not None)
         )
 
+    def _log(self, s: str):
+        if self.debug:
+            sys.stderr.write(s)
+
 
 def main():
     squeezer = Squeezer()
+    squeezer.set_debug()
     while True:
         data = sys.stdin.buffer.read(2048)
         if not data:
-            print()
-            print(squeezer.feed())
+            sys.stderr.write('\n')
+            sys.stdout.write(squeezer.feed())
+            sys.stdout.write('\n')
             break
         result = squeezer.feed(data)
         if result.enough:
-            print()
-            print(result)
+            sys.stderr.write('\n')
+            sys.stdout.write(result)
+            sys.stdout.write('\n')
             break
 
 
