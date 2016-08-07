@@ -431,7 +431,9 @@ class Squeezer:
                 else:
                     self.state = State.script
             elif self.state == State.scripttagslashscript:
-                if c == b'>':
+                if self._isspace(c):
+                    pass
+                elif c == b'>':
                     self.lasttag = b'/script'
                     self._start_tag(self.lasttag)
                     self._finish_tag(self.lasttag)
@@ -473,7 +475,9 @@ class Squeezer:
                 else:
                     self.state = State.style
             elif self.state == State.styletagslashstyle:
-                if c == b'>':
+                if self._isspace(c):
+                    pass
+                elif c == b'>':
                     self.lasttag = b'/style'
                     self._start_tag(self.lasttag)
                     self._finish_tag(self.lasttag)
