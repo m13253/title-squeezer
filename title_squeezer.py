@@ -15,6 +15,7 @@ import sys
 
 
 class Title:
+
     def __init__(self, enough: bool, title: str, description: str, charset: str, eff_charset: str):
         self.enough = enough
         self.title = title
@@ -99,6 +100,7 @@ class State(enum.Enum):
 
 
 class Squeezer:
+
     def __init__(self, default_charset='UTF-8'):
         self.debug = False
 
@@ -612,12 +614,12 @@ def main():
         data = sys.stdin.buffer.read(2048)
         if not data:
             sys.stderr.write('\n')
-            sys.stdout.write(str(squeezer.feed())+'\n')
+            sys.stdout.write(str(squeezer.feed()) + '\n')
             break
         result = squeezer.feed(data)
         if result.enough:
             sys.stderr.write('\n')
-            sys.stdout.write(str(result)+'\n')
+            sys.stdout.write(str(result) + '\n')
             break
 
 
